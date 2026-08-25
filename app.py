@@ -1,15 +1,26 @@
-from flask import Flask, request
+from flask import Flask, session, render_template, url_for, flash, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
+from flask_sock import Sock
 
-# -- Init Stuff -- #
+# -- Init -- #
 # Flask
 app = Flask(__name__)
+sock = Sock()
+app.config["SECRET_KEY"] = "airTrackerKEY1234"
 
 # Database
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///airTrackerApp.sqlite3"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+
+# -- Global Variables -- #
+PAYLOAD_KEY_TO_SENSOR_TYPE = {
+    "co2Reading": "co2",
+    "tempReading": "temperature",
+    "humidityReading": "humidity",
+    "pm25Reading": "pm25",
+}
 
 # -- Functions -- #
 def setUTC():
@@ -27,6 +38,7 @@ class sensor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     trackerID = db.Column(db.Integer, db.ForeignKey("tracker.id"), nullable=False)
     sensorTypeID = db.Column(db.Integer, db.ForeignKey("sensorType.id"), nullable=False)
+
     sensorType = db.relationship("sensorType")
     tracker = db.relationship("tracker")
 
@@ -42,6 +54,7 @@ class status(db.Model):
     trackerID = db.Column(db.Integer, db.ForeignKey("tracker.id"), nullable=False)
     status = db.Column(db.String(50))
     lastConnected = db.Column(db.DateTime)
+
     tracker = db.relationship("tracker")
 
 # Data
@@ -51,6 +64,7 @@ class data(db.Model):
     sensorID = db.Column(db.Integer, db.ForeignKey("sensor.id"), nullable=False)
     value = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, default=setUTC, nullable=False)
+
     sensor = db.relationship("sensor")
 
 class threshold(db.Model):
@@ -67,6 +81,7 @@ class warning(db.Model):
     thresholdID = db.Column(db.Integer, db.ForeignKey("threshold.id"), nullable=False)
     alertedAt = db.Column(db.DateTime, default=setUTC, nullable=False)
     threshLevel = db.Column(db.String(50))
+
     data = db.relationship("data")
     threshold = db.relationship("threshold")
 
@@ -83,6 +98,7 @@ class userTrackers(db.Model): # Trackers = Devices
     id = db.Column(db.Integer, primary_key=True)
     trackerID = db.Column(db.Integer, db.ForeignKey("tracker.id"), nullable=False)
     userID = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    
     tracker = db.relationship("tracker")
     user = db.relationship("user")
 
@@ -124,11 +140,91 @@ def register():
 # -- Backend Routes -- #
 @app.route("/data/POST", methods=["POST"])
 def dataPOST():
-    pass
+    payload = request.get_json(silent=True)
+    trackerDeviceID = payload.get("trackerID")
+    trackerDevice = tracker.query.get(trackerDeviceID)
 
-@app.route("/data/WebSocket")
-def dataWebSocket():
-    pass
+    # -- Verify -- #
+    # Payload
+    if payload is None:
+        return jsonify({"error": "Not JSON"}), 400
+    # Tracker ID
+    if trackerDeviceID is None:
+        return jsonify({"error": "Missing trackerID"}), 400
+    # Tracker in Database
+    if trackerDevice is None:
+        return jsonify({"error": f"Tracker: {trackerDeviceID} not Found"}), 404
+
+    # -- Process Data -- #
+    createdRows = []
+
+    # Loop through each possible reading type in the payload
+    for payloadKey, sensorTypeName in PAYLOAD_KEY_TO_SENSOR_TYPE.items():
+        if payloadKey not in payload:
+            continue  # this reading wasn't included in this batch
+
+        # Find the sensor on this tracker that matches this reading's type
+        matchingSensor = (
+            sensor.query.join(sensorType)
+            .filter(sensor.trackerID == trackerDeviceID, sensorType.type == sensorTypeName)
+            .first()
+        )
+        if matchingSensor is None:
+            continue  # no sensor of this type exists for this tracker yet
+
+        # Save the reading
+        newData = data(sensorID=matchingSensor.id, value=float(payload[payloadKey]))
+        db.session.add(newData)
+        db.session.commit()  # commit now so newData.id is assigned
+
+        # Check if this reading crosses a threshold, log a warning if so
+        matchingThreshold = threshold.query.filter_by(sensorTypeID=matchingSensor.sensorTypeID).first()
+        if matchingThreshold is not None:
+            level = None
+            if newData.value >= matchingThreshold.criticalVal:
+                level = "critical"
+            elif newData.value >= matchingThreshold.warningVal:
+                level = "warning"
+
+            if level:
+                db.session.add(warning(dataID=newData.id, thresholdID=matchingThreshold.id, threshLevel=level))
+                db.session.commit()
+
+        createdRows.append({"sensorID": matchingSensor.id, "value": newData.value})
+
+    return jsonify({"created": createdRows}), 201
+    
+    
+
+@sock.route("/ws/tracker")
+def trackerWS(ws):
+    trackerDeviceID = request.args.get("trackerID", type=int)
+    trackerDevice = tracker.query.get(trackerDeviceID)
+
+    # Verifying Tracker 
+    if trackerDeviceID is None:
+        ws.close()
+        return
+
+    if trackerDevice is None:
+        ws.close()
+        return
+
+    # Connect to Tracker
+    db.session.add(status(trackerID=trackerDeviceID, status="online"))
+    db.session.commit()
+
+    # Connection Successful
+    try:
+        while True:
+            message = ws.receive()
+            if message is None:
+                break
+    
+    # Tracker Disconnects
+    finally:
+        db.session.add(status(trackerID=trackerDeviceID, status="offline"))
+        db.session.commit()
 
 # -- Run Stuff -- #
 if __name__ == "__main__":
