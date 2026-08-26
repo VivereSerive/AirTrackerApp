@@ -1,0 +1,189 @@
+/* Grayscale, mono theme matching the wireframe's boxy sidebar layout */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    font-family: "Courier New", monospace;
+}
+
+/* -- Layout shared by every logged-in page -- */
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 160px;
+    border-right: 1px solid #555;
+    padding: 16px 0;
+    flex-shrink: 0;
+}
+
+.sidebar .brand {
+    padding: 0 16px 16px 16px;
+    font-size: 1.2rem;
+}
+
+.sidebar a {
+    display: block;
+    padding: 10px 16px;
+    color: #ccc;
+    text-decoration: none;
+    border-top: 1px solid #333;
+}
+
+.sidebar a:hover, .sidebar a.active {
+    background: #2a2a2a;
+    color: #fff;
+}
+
+.main-content {
+    flex: 1;
+    padding: 24px;
+}
+
+/* -- Boxes / cards -- */
+.box {
+    border: 1px solid #777;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.tile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.tile {
+    border: 1px solid #777;
+    border-radius: 6px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.tile .reading-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+/* Status colors kept grayscale-friendly: shade, not hue, marks severity */
+.tile.status-normal .reading-circle { border-color: #999; }
+.tile.status-warning .reading-circle { border-color: #ccc; border-width: 3px; }
+.tile.status-critical .reading-circle { background: #ccc; color: #111; }
+
+.warning-strip {
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    padding: 10px 16px;
+}
+
+.warning-strip .warning-row {
+    padding: 4px 0;
+    border-bottom: 1px solid #333;
+}
+
+/* -- Forms -- */
+.form-box {
+    border: 1px solid #777;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 360px;
+    margin: 60px auto;
+}
+
+.form-box input, .form-box select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    background: #111;
+    border: 1px solid #666;
+    color: #eee;
+    border-radius: 4px;
+}
+
+.form-box button {
+    width: 100%;
+    padding: 10px;
+    background: #333;
+    color: #eee;
+    border: 1px solid #888;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.form-box button:hover {
+    background: #444;
+}
+
+.landing-card {
+    border: 1px solid #777;
+    border-radius: 12px;
+    max-width: 320px;
+    margin: 100px auto;
+    padding: 40px;
+    text-align: center;
+}
+
+.landing-card a {
+    display: block;
+    margin: 10px 0;
+    color: #eee;
+    border: 1px solid #777;
+    border-radius: 6px;
+    padding: 10px;
+    text-decoration: none;
+}
+
+.flash {
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+}
+
+/* -- Settings list -- */
+.settings-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+}
+
+/* -- Analytics controls -- */
+.controls-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.controls-row select {
+    background: #111;
+    color: #eee;
+    border: 1px solid #777;
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+
+.chart-box {
+    border: 1px solid #777;
+    border-radius: 6px;
+    padding: 16px;
+    height: 400px;
+}

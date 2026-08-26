@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+    <form method="get" class="controls-row">
+        <select name="sensorID" onchange="this.form.submit()">
+            <option value="">Data Type</option>
+            {% for s in sensors %}
+                <option value="{{ s.id }}" {{ "selected" if selectedSensorID == s.id else "" }}>
+                    {{ s.sensorType.type }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="days" onchange="this.form.submit()">
+            <option value="1" {{ "selected" if days == 1 else "" }}>Last 24 hours</option>
+            <option value="7" {{ "selected" if days == 7 else "" }}>Last 7 days</option>
+            <option value="30" {{ "selected" if days == 30 else "" }}>Last 30 days</option>
+        </select>
+    </form>
+
+    <div class="chart-box">
+        <canvas id="readingsChart"></canvas>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script>
+        // Data comes from the server already filtered by sensor + date range —
+        // this script's only job is drawing it, not fetching or filtering.
+        const labels = {{ chartLabels | tojson }};
+        const values = {{ chartValues | tojson }};
+
+        new Chart(document.getElementById("readingsChart"), {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Reading",
+                    data: values,
+                    borderColor: "#cccccc",
+                    backgroundColor: "rgba(200,200,200,0.15)",
+                    tension: 0.2,
+                }],
+            },
+            options: {
+                scales: {
+                    x: { ticks: { color: "#999" }, grid: { color: "#333" } },
+                    y: { ticks: { color: "#999" }, grid: { color: "#333" } },
+                },
+                plugins: {
+                    legend: { labels: { color: "#ccc" } },
+                },
+            },
+        });
+    </script>
+{% endblock %}

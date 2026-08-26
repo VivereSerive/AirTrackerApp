@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+    <div class="box">
+        {% for t in trackers %}
+            {% set s = latestStatus.get(t.id) %}
+            [{{ t.name }}]
+            [{{ s.status if s else "unknown" }}{% if s %} — last changed {{ s.lastConnected.strftime("%Y-%m-%d %H:%M UTC") }}{% endif %}]
+        {% else %}
+            No trackers linked to this account yet.
+        {% endfor %}
+    </div>
+
+    <div class="tile-grid">
+        {% for sensorTypeName, label, unitFallback in [
+            ("pm25", "PM 2.5", "µg/m³"),
+            ("co2", "CO2", "ppm"),
+            ("humidity", "Humidity", "%"),
+            ("temperature", "Temp", "°C"),
+        ] %}
+            {% set reading = latestReadings.get(sensorTypeName) %}
+            <div class="tile status-normal">                <div>
+                    <div>{{ label }}</div>
+                    <div>{{ "%.1f"|format(reading.value) if reading else "—" }} {{ reading.sensor.sensorType.unit if reading else unitFallback }}</div>
+                </div>
+                <div class="reading-circle">
+                    {{ "OK" if reading else "N/A" }}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="warning-strip">
+        {% for w in activeWarnings %}
+            <div class="warning-row">
+                [WARNING] {{ w.data.sensor.sensorType.type }} reading of {{ w.data.value }} crossed {{ w.threshLevel }} threshold at {{ w.alertedAt.strftime("%Y-%m-%d %H:%M UTC") }}
+            </div>
+        {% else %}
+            <div class="warning-row">No active warnings.</div>
+        {% endfor %}
+    </div>
+{% endblock %}
