@@ -239,12 +239,29 @@ def login():
 @app.route("/logout")
 @login_required
 def logout():
-    pass
+    logout_user()
+    return redirect(url_for("index"))
 
 # Register Route
-@app.route("/register")
+@app.route("/register", methods=["POST", "GET"])
 def register():
-    pass
+    if request.method == "POST":
+        username = request.form.get("username")
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        if user.query.filter_by(username=username).first():
+            flash("That username is already taken")
+            return redirect(url_for("register"))
+
+        newUser = user(username=username, email=email)
+        newUser.setPassword(password)  # hashes it before storing
+        db.session.add(newUser)
+        db.session.commit()
+
+        return redirect(url_for("login"))
+    
+    return render_template("register.html")
 
 # -- Backend Routes -- #
 @app.route("/data/POST", methods=["POST"])
