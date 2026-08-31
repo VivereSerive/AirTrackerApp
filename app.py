@@ -219,12 +219,25 @@ def settings():
     return render_template("settings.html", thresholds=thresholds)
 
 # Login Route
-@app.route("/login")
+@app.route("/login", methods=["POST", "GET"])
 def login():
-    pass
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        matchedUser = user.query.filter_by(username=username).first()
+
+        if matchedUser is None or not matchedUser.checkPassword(password):
+            flash("Invalid Username or Password")
+            return redirect(url_for("login"))
+
+        login_user(matchedUser)
+        return redirect(url_for("dashboard"))
+
+    return render_template("login.html")
 
 # Logout Route
 @app.route("/logout")
+@login_required
 def logout():
     pass
 
