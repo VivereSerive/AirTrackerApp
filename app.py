@@ -201,9 +201,22 @@ def analytics():
     )
 
 # Settings
-@app.route("/settings")
+@app.route("/settings", methods=["POST", "GET"])
 def settings():
-    pass
+    if request.method == "POST":
+        for t in threshold.query.all():
+            warningKey = f"warning-{t.id}"
+            criticalKey = f"critical-{t.id}"
+            if warningKey in request.form:
+                t.warningVal = float(request.form[warningKey])
+            if criticalKey in request.form:
+                t.criticalVal = float(request.form[criticalKey])
+        db.session.commit()
+        flash("Settings saved")
+        return redirect(url_for("settings"))
+
+    thresholds = threshold.query.all()
+    return render_template("settings.html", thresholds=thresholds)
 
 # Login Route
 @app.route("/login")
