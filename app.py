@@ -16,6 +16,10 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///airTrackerApp.sqlite3"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
+# Login Manager
+loginManager = LoginManager(app)
+loginManager.login.view = "login"
+
 # -- Global Variables -- #
 PAYLOAD_KEY_TO_SENSOR_TYPE = {
     "co2Reading": "co2",
@@ -28,7 +32,7 @@ PAYLOAD_KEY_TO_SENSOR_TYPE = {
 def setUTC():
     return datetime.now(timezone.utc)
 
-@LoginManager.user_loader
+@loginManager.user_loader
 def loadUser(userID):
     return user.query.get(int(userID))
 
