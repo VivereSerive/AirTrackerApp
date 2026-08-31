@@ -1,7 +1,9 @@
-from flask import Flask, session, render_template, url_for, flash, request, jsonify
+from flask import Flask, session, render_template, url_for, flash, request, jsonify, redirect
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
 from flask_sock import Sock
+from flask_login import UserMixin, LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # -- Init -- #
 # Flask
@@ -25,6 +27,13 @@ PAYLOAD_KEY_TO_SENSOR_TYPE = {
 # -- Functions -- #
 def setUTC():
     return datetime.now(timezone.utc)
+
+@LoginManager.user_loader
+def loadUser(userID):
+    return user.query.get(int(userID))
+
+def getUserTrackers():
+    return(tracker.query.join(userTrackers).filter(userTrackers.userID == current_user.id).all())
 
 # -- Models -- #
 # Sensors
@@ -90,8 +99,16 @@ class user(db.Model):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
-    password = db.Column(db.String(50), nullable=False)
+    password = db.Column(db.String(255), nullable=False) # Updated to Store Hash
     email = db.Column(db.String(50), nullable=False)
+
+    def writePass(self, rawPass):
+        # Hash for Security
+        self.password = generate_password_hash(rawPass)
+
+    def checkPass(self, rawPass):
+        return check_password_hash(self.password, rawPass)
+
 
 class userTrackers(db.Model): # Trackers = Devices
     __tablename__ = "userTrackers"
@@ -105,13 +122,44 @@ class userTrackers(db.Model): # Trackers = Devices
 # -- Frontend Routes -- #
 @app.route("/")
 def index():
-    return "Hello World"
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    return render_template("index.html")
 
 # Dashboard
 @app.route("/dashboard")
 def dashboard():
-    pass
+    # -- Setup -- #
+    trackers = getUserTrackers()
+    latestStatus = {}
+    latestData = {}
 
+    # -- Get -- #
+    # Tracker
+    trackerIDs = [t.id for t in trackers]
+    # Sensor
+    sensors = sensor.query.filter(sensor.trackerID.in_(trackerIDs)).all()
+    # Warnings
+    activeWarnings = (warning.query.join(data).join(sensor)
+                      .filter(sensor.trackerID.in_(trackerIDs))
+                      .order_by(warning.alertedAt.desc())
+                      .limit(10)
+                      .all())
+
+    # -- Process -- #
+    for t in trackers:
+        latestStatus[t.id] = (
+            status.query.filter_by(trackerID=t.id)
+            .order_by(status.lastConnected.desc())
+            .first())
+    for s in sensors:
+        latestData[s.sensorType.type] = (
+            data.query.filter_by(sensorID=s.id)
+            .order_by(data.timestamp.desc())
+            .first()
+        )
+
+    return render_template("dashboard.html", trackers=trackers, latestStatus=latestStatus, latestReadings=latestData, activeWarnings=activeWarnings)
 # Analytics
 @app.route("/analytics")
 def analytics():
@@ -193,8 +241,6 @@ def dataPOST():
         createdRows.append({"sensorID": matchingSensor.id, "value": newData.value})
 
     return jsonify({"created": createdRows}), 201
-    
-    
 
 @sock.route("/ws/tracker")
 def trackerWS(ws):
