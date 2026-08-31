@@ -18,7 +18,7 @@ db = SQLAlchemy(app)
 
 # Login Manager
 loginManager = LoginManager(app)
-loginManager.login.view = "login"
+loginManager.login_view = "login"
 
 # -- Global Variables -- #
 PAYLOAD_KEY_TO_SENSOR_TYPE = {
