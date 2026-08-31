@@ -160,10 +160,45 @@ def dashboard():
         )
 
     return render_template("dashboard.html", trackers=trackers, latestStatus=latestStatus, latestReadings=latestData, activeWarnings=activeWarnings)
+
 # Analytics
 @app.route("/analytics")
+@login_required
 def analytics():
-    pass
+    # -- Setup -- #
+    trackers = getUserTrackers()
+    readings = []
+
+    # -- Get -- #
+    # Tracker
+    trackerIDs = [t.id for t in trackers]
+    # Sensor
+    sensors = sensor.query.filter(sensor.trackerID.in_(trackerIDs)).all()
+    # User
+    selectedSensorID = request.args.get("sensorID", type=int)
+    days = request.args.get("days", default=7, type=int)
+
+    # -- Process -- #
+    if selectedSensorID:
+        cutoff = db.func.datetime("now", f"-{days} days")
+        readings = (
+            data.query.filter(data.sensorID == selectedSensorID, data.timestamp >= cutoff)
+            .order_by(data.timestamp.asc())
+            .all()
+        )
+
+    # Chart.js
+    chartLabels = [r.timestamp.strftime("%m/%d %H:%M") for r in readings]
+    chartValues = [r.value for r in readings]
+
+    return render_template(
+        "analytics.html",
+        sensors=sensors,
+        selectedSensorID=selectedSensorID,
+        days=days,
+        chartLabels=chartLabels,
+        chartValues=chartValues,
+    )
 
 # Settings
 @app.route("/settings")
