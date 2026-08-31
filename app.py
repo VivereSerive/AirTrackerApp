@@ -66,7 +66,7 @@ class status(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     trackerID = db.Column(db.Integer, db.ForeignKey("tracker.id"), nullable=False)
     status = db.Column(db.String(50))
-    lastConnected = db.Column(db.DateTime)
+    lastConnected = db.Column(db.DateTime, default=setUTC)
 
     tracker = db.relationship("tracker")
 
@@ -86,6 +86,8 @@ class threshold(db.Model):
     sensorTypeID = db.Column(db.Integer, db.ForeignKey("sensorType.id"), nullable=False)
     warningVal = db.Column(db.Float)
     criticalVal = db.Column(db.Float)
+
+    sensorType = db.relationship("sensorType")
 
 class warning(db.Model):
     __tablename__ = "warning"
