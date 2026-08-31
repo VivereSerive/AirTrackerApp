@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # -- Init -- #
 # Flask
 app = Flask(__name__)
-sock = Sock()
+sock = Sock(app)
 app.config["SECRET_KEY"] = "airTrackerKEY1234"
 
 # Database
@@ -101,7 +101,7 @@ class warning(db.Model):
     threshold = db.relationship("threshold")
 
 # User
-class user(db.Model):
+class user(db.Model, UserMixin):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -134,6 +134,7 @@ def index():
 
 # Dashboard
 @app.route("/dashboard")
+@login_required
 def dashboard():
     # -- Setup -- #
     trackers = getUserTrackers()
@@ -232,7 +233,7 @@ def login():
         password = request.form.get("password")
         matchedUser = user.query.filter_by(username=username).first()
 
-        if matchedUser is None or not matchedUser.checkPassword(password):
+        if matchedUser is None or not matchedUser.checkPass(password):
             flash("Invalid Username or Password")
             return redirect(url_for("login"))
 
@@ -261,7 +262,7 @@ def register():
             return redirect(url_for("register"))
 
         newUser = user(username=username, email=email)
-        newUser.setPassword(password)  # hashes it before storing
+        newUser.writePass(password)  # hashes it before storing
         db.session.add(newUser)
         db.session.commit()
 
